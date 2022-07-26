@@ -1,18 +1,14 @@
-import { track, trigger } from "./effect"
+import {
+  mutableHandlers
+} from './baseHandlers'
 
-export function reactive(raw) {
-  return new Proxy(raw, {
-    get(target, key) {
-      const res = Reflect.get(target, key)
-      // 收集依赖
-      track(target, key)
-      return res
-    },
-    set(target, key, value) {
-      const res = Reflect.set(target, key, value)
-      // TODO 触发依赖
-      trigger(target, key)
-      return res
-    }
-  })
+export const reactiveMap = new WeakMap()
+
+export function reactive(target) {
+  return createReactiveObject(target, reactiveMap, mutableHandlers)
+}
+
+function createReactiveObject(target, proxyMap, baseHandlers) {
+  const proxy = new Proxy(target, baseHandlers)
+  return proxy
 }

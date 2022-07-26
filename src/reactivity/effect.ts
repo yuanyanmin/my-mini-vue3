@@ -31,7 +31,7 @@ function clearupEffect(effect:any) {
 
 // 收集依赖
 const targetMap = new Map()
-export function track(target, key) {
+export function track(target, type, key) {
   // target -> key -> dep
   let depsMap = targetMap.get(target)
 
@@ -54,7 +54,7 @@ export function track(target, key) {
 }
 
 // 触发依赖
-export function trigger(target, key) {
+export function trigger(target, type, key) {
   let depsMap = targetMap.get(target)
   let dep = depsMap.get(key)
 
