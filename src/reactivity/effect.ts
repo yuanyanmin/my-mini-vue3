@@ -1,15 +1,17 @@
 import { createDep } from "./dep";
+// import { extend } from "@mini-vue/shared";
 export const extend = Object.assign;
 
 let shouldTrack = false
 let activeEffect = void 0
 const targetMap = new WeakMap();
 
+// 用于依赖收集
 export class ReactiveEffect {
   deps = []
   active = true;
-  onStop?: () => void;
-  constructor (public fn, public scheuler?) {
+  public onStop?: () => void;
+  constructor (public fn, public scheduler?) {
     console.log("创建 ReactiveEffect 对象");
 
   }
@@ -45,18 +47,22 @@ export class ReactiveEffect {
 
   stop() {
     if (this.active) {
-      clearupEffect(this)
+      // 如果第一次执行 stop 后 active 就 false 了
+      // 这是为了防止重复的调用，执行 stop 逻辑
+      cleanupEffect(this);
       if (this.onStop) {
         this.onStop()
       }
       this.active = false
     }
-    
+
   }
 }
 
-function clearupEffect(effect:any) {
-  effect.deps.forEach((dep:any) => {
+function cleanupEffect(effect) {
+  // 找到所有依赖这个 effect 的响应式对象
+  // 从这些响应式对象里面把 effect 给删除掉
+  effect.deps.forEach((dep) => {
     dep.delete(effect)
   });
   effect.deps.length = 0;
@@ -83,16 +89,14 @@ export function stop(runner) {
 
 // 收集依赖
 export function track(target, type, key) {
-  // 先收集所有的 dep 放到 deps 里面
-  // target -> key -> dep
   if (!isTracking()) {
     return;
   }
-
-  let depsMap = targetMap.get(target)
-
+  console.log(`触发 track -> target: ${target} type:${type} key:${key}`);
   // 1. 先基于 target 找到对应的 dep
   // 如果是第一次的话，那么就需要初始化
+  let depsMap = targetMap.get(target)
+  
   if (!depsMap) {
     // 初始化 depsMap 的逻辑
     depsMap = new Map()
@@ -119,6 +123,7 @@ export function trackEffects(dep) {
   // 可能会影响 code path change 的情况
   // 需要每次都 cleanupEffect
   // shouldTrack = !dep.has(activeEffect!);
+  
   if (!dep.has(activeEffect)) {
     dep.add(activeEffect);
     (activeEffect as any).deps.push(dep);
@@ -132,6 +137,9 @@ export function trigger(target, type, key) {
   // dep
 
   const depsMap = targetMap.get(target);
+
+  console.log('depsMap', depsMap);
+  
 
   if (!depsMap) return;
 
@@ -147,6 +155,8 @@ export function trigger(target, type, key) {
     // 这里解构 dep 得到的是 dep 内部存储的 effect
     effects.push(...dep);
   });
+  console.log('effects', effects);
+  
   // 这里的目的是只有一个 dep ，这个dep 里面包含所有的 effect
   // 这里的目前应该是为了 triggerEffects 这个函数的复用
   triggerEffects(createDep(effects));
