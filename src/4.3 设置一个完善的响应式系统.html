@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    // 响应式
+    
+    // 4.3 设置一个完善的响应式系统
+
+    // // 全局变量存储被注册的副作用函数
+    // let activeEffect
+    // // 存储副作用函数的捅
+    // const bucket = new Set()
+
+    // // 原始数据
+    // const data = {text: 'hello'}
+    
+    // // 代理
+    // const obj = new Proxy(data, {
+    //   get(target, key) {
+    //     // 将副作用函数添加到effect中
+    //     if (activeEffect) {
+    //       bucket.add(activeEffect)
+    //     }
+    //     // 返回属性值
+    //     return target[key]
+    //   },
+    //   set(target, key, value) {
+    //     // 设置属性值
+    //     target[key] = value
+    //     // 把副作用函数从桶里拿出来并执行
+    //     bucket.forEach(fn => fn())
+    //     return true
+    //   }
+    // })
+
+    // // 副作用函数
+    // function effect(fn) {
+    //   // 当调用 effect 注册副作用函数时，将副作用函数 fn 赋值给 activeEffect
+    //   activeEffect = fn
+    //   // 执行副作用函数
+    //   fn()
+    // }
+
+    // effect(() => {
+    //   console.log('effect run');
+    //   document.body.innerText = obj.text
+    // })
+
+    // setTimeout(() => {
+    //   // obj.text = 'hello vue3'
+    //   obj.noExist = 'hello vue3'
+    // }, 2000)
+
+    // --------------------------------------------------------------
+
+    // WeakMap 由 target ---> Map 组成
+    // Map 由 key ---> Set 组成
+
+    // // 全局变量存储被注册的副作用函数
+    // let activeEffect
+    // // 存储副作用函数的捅
+    // const bucket = new WeakMap()
+
+    // // 原始数据
+    // const data = {text: 'hello'}
+    
+    // // 代理
+    // const obj = new Proxy(data, {
+    //   get(target, key) {
+    //     // 若 没有 activeEffect ，则return
+    //     if (!activeEffect) {
+    //       return target[key]
+    //     }
+
+    //     // 根据target从桶中得到 depsMap, Map类型 key ---> effects
+    //     // Map: {
+    //     //   obj: {
+    //     //     text: effectFn（set)
+    //     //   }
+    //     // }
+    //     let depsMap = bucket.get(target)
+
+    //     if (!depsMap) {
+    //       bucket.set(target, (depsMap = new Map()))
+    //     }
+
+    //     // 获取当前key相关的副作用函数,Set类型
+    //     let deps = depsMap.get(key)
+    //     if (!deps) {
+    //       depsMap.set(key, (deps = new Set()))
+    //     }
+        
+    //     // 将当前副作用函数添加到桶中
+    //     deps.add(activeEffect)
+
+    //     // 返回属性值
+    //     return target[key]
+    //   },
+    //   set(target, key, value) {
+    //     // 设置属性值
+    //     target[key] = value
+    //     // 根据target从同种取得depsMap key--->effectFn
+    //     const depsMap = bucket.get(target)
+    //     if (!depsMap) {
+    //       return
+    //     }
+    //     // 根据key取得的所有副作用函数 effects
+    //     const effects = depsMap.get(key)
+    //     effects && effects.forEach(fn => fn())
+    //     return true
+    //   }
+    // })
+
+    // // 副作用函数
+    // function effect(fn) {
+    //   // 当调用 effect 注册副作用函数时，将副作用函数 fn 赋值给 activeEffect
+    //   activeEffect = fn
+    //   // 执行副作用函数
+    //   fn()
+    // }
+
+    // effect(() => {
+    //   console.log('effect run');
+    //   document.body.innerText = obj.text
+    // })
+
+    // setTimeout(() => {
+    //   obj.text = 'hello vue3'
+    //   // obj.noExist = 'hello vue3'
+    // }, 2000)
+
+    // --------------------------------------------------------------------
+
+    // 全局变量存储被注册的副作用函数
+    let activeEffect
+    // 存储副作用函数的捅
+    const bucket = new WeakMap()
+
+    // 原始数据
+    const data = {text: 'hello'}
+    
+    // 代理
+    const obj = new Proxy(data, {
+      get(target, key) {
+        track(target, key)
+
+        // 返回属性值
+        return target[key]
+      },
+      set(target, key, value) {
+        // 设置属性值
+        target[key] = value
+        trigger(target, key)
+        return true
+      }
+    })
+
+    function track(target, key) {
+      // 若 没有 activeEffect ，则return
+      if (!activeEffect) {
+        return target[key]
+      }
+
+      let depsMap = bucket.get(target)
+
+      if (!depsMap) {
+        bucket.set(target, (depsMap = new Map()))
+      }
+
+      // 获取当前key相关的副作用函数,Set类型
+      let deps = depsMap.get(key)
+      if (!deps) {
+        depsMap.set(key, (deps = new Set()))
+      }
+      
+      // 将当前副作用函数添加到桶中
+      deps.add(activeEffect)
+    }
+
+    function trigger(target, key) {
+      // 根据target从同种取得depsMap key--->effectFn
+      const depsMap = bucket.get(target)
+      if (!depsMap) {
+        return
+      }
+      // 根据key取得的所有副作用函数 effects
+      const effects = depsMap.get(key)
+      effects && effects.forEach(fn => fn())
+    }
+
+    // 副作用函数
+    function effect(fn) {
+      // 当调用 effect 注册副作用函数时，将副作用函数 fn 赋值给 activeEffect
+      activeEffect = fn
+      // 执行副作用函数
+      fn()
+    }
+
+    effect(() => {
+      console.log('effect run');
+      document.body.innerText = obj.text
+    })
+
+    setTimeout(() => {
+      // obj.text = 'hello vue3'
+      obj.noExist = 'hello vue3'
+    }, 2000)
+
+
+
+
+  </script>
+</body>
+</html>
